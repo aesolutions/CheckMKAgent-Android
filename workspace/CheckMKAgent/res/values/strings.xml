@@ -4,6 +4,9 @@
     <string name="app_name">CheckMKAgent</string>
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
-    <string name="title_activity_configure">ConfigureActivity</string>
+    <string name="title_activity_configure">Configuration</string>
+    <string name="btnstart">Start Service</string>
+    <string name="btnstop">Stop Service</string>
+    <string name="lblstatus">Status: </string>
 
 </resources>

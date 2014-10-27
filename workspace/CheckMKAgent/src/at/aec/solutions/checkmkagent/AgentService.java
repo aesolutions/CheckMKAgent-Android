@@ -12,7 +12,6 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -30,6 +29,8 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.res.AssetManager;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.PowerManager;
+import android.os.PowerManager.WakeLock;
 import android.preference.PreferenceManager;
 import android.support.v4.app.NotificationCompat;
 import android.telephony.TelephonyManager;
@@ -49,16 +50,23 @@ public class AgentService extends Service {
 
 	private int mId;
 
+	private WakeLock m_wakeLock;
+
 	@Override
 	public IBinder onBind(Intent intent) {
 		return null;
 	}
 
 	@Override
-	public void onCreate() {
-		// TODO Auto-generated method stub
+	public void onCreate()
+	{
 		super.onCreate();
 		Log.v(TAG, "onCreate");
+		
+		PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+		m_wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
+		        "MyWakelockTag");
+		m_wakeLock.acquire();
 		
 		//Copy busybox binary to app directory
 		if (!PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).getBoolean("bbinstalled", false))
@@ -87,6 +95,7 @@ public class AgentService extends Service {
 		
 
 		socketServerThread = new Thread(new SocketServerThread());
+		socketServerThread.setName("CheckMK-Agent ServerThread");
 		socketServerThread.start();
 
 		NotificationCompat.Builder mBuilder =
@@ -128,17 +137,24 @@ public class AgentService extends Service {
 	}
 
 	@Override
-	public void onDestroy() {
-		// TODO Auto-generated method stub
+	public void onDestroy()
+	{
 		super.onDestroy();
 		Log.v(TAG, "onDestroy");
 		
 		m_isListening = false;
+		
+		if(m_wakeLock != null)
+		{
+			m_wakeLock.release();
+		}
 
 		if (m_serverSocket != null) {
-			try {
+			try
+			{
 				m_serverSocket.close();
-			} catch (IOException e) {
+			}
+			catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
@@ -152,20 +168,23 @@ public class AgentService extends Service {
 			try
 			{
 				m_serverSocket = new ServerSocket(SERVERPORT);
+				m_isListening=true;
+				
+				int i =0;
 
-				while (true)
+				while (m_isListening)
 				{
 					Socket socket = m_serverSocket.accept();
 
 					SocketServerReplyThread socketServerReplyThread = new SocketServerReplyThread(socket);
+					socketServerReplyThread.setName("AgentThread "+(i++));
 					socketServerReplyThread.run();
 
 				}
 			}
 			catch (IOException e)
 			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				Log.e(TAG,e.getMessage());
 			}
 		}
 	}
@@ -201,11 +220,12 @@ public class AgentService extends Service {
 				writeCoreTemp(out);
 				
 				out.close();
+				
+				hostThreadSocket.close();
 			}
 			catch (IOException e)
 			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				Log.e(TAG,e.getMessage());
 			}
 		}
 	}
@@ -267,6 +287,7 @@ public class AgentService extends Service {
 	        		fstypes.put(linevals[0], linevals[2]);
 	        	}
 	        }
+	        br.close();
 		}
 		catch(FileNotFoundException _fnfex)
 		{
@@ -295,10 +316,12 @@ public class AgentService extends Service {
 						+ separator + linevals[4] + separator + linevals[5];
 				_out.write(outline + NEWLINE);
 			}
+			
+			is.close();
 		}
-		catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		catch (IOException e)
+		{
+			Log.e(TAG,e.getMessage());
 		}
 
 		Process mount_proc;
@@ -319,10 +342,12 @@ public class AgentService extends Service {
 					_out.write(line+NEWLINE);
 				}
 			}
+			
+			is.close();
 		}
-		catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		catch (IOException e)
+		{
+			Log.e(TAG,e.getMessage());
 		}
 	}
 	
@@ -371,14 +396,13 @@ public class AgentService extends Service {
 					String outline = "("+linevals[8]+","+parseHRNumber(linevals[5])+","+parseHRNumber(linevals[6])+","+cpu+") "+linevals[9];
 					_out.write(outline+NEWLINE);
 				}
-				
-//				String outline = "("+linevals[1];
-//				_out.write(linevals.length+NEWLINE);
 			}
+			
+			is.close();
 		}
-		catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		catch (IOException e)
+		{
+			Log.e(TAG,e.getMessage());
 		}		
 	}
 
@@ -397,17 +421,20 @@ public class AgentService extends Service {
 			{
 				_out.write(line+NEWLINE);
 			}
+			
+			is.close();
 		}
-		catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		catch (IOException e)
+		{
+			Log.e(TAG,e.getMessage());
 		}		
 	}
 	
 	private void writeCPULoad(PrintWriter _out)
 	{
 		Process loadavg_proc;
-		try {
+		try
+		{
 			loadavg_proc = Runtime.getRuntime().exec("cat /proc/loadavg");
 			
 			BufferedReader is = new BufferedReader(new InputStreamReader(loadavg_proc.getInputStream()));
@@ -419,10 +446,12 @@ public class AgentService extends Service {
 			{
 				_out.write(line+NEWLINE);
 			}
+			
+			is.close();
 		}
-		catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		catch (IOException e)
+		{
+			Log.e(TAG,e.getMessage());
 		}		
 	}
 	
@@ -441,10 +470,12 @@ public class AgentService extends Service {
 			{
 				_out.write(line+NEWLINE);
 			}
+			
+			is.close();
 		}
-		catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		catch (IOException e)
+		{
+			Log.e(TAG,e.getMessage());
 		}
 	}
 	
@@ -463,10 +494,12 @@ public class AgentService extends Service {
 			{
 				_out.write(line+NEWLINE);
 			}
+			
+			is.close();
 		}
-		catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		catch (IOException e)
+		{
+			Log.e(TAG,e.getMessage());
 		}
 		
 		Process newnet_proc;
@@ -483,10 +516,12 @@ public class AgentService extends Service {
 			{
 				_out.write(line+NEWLINE);
 			}
+			
+			is.close();
 		}
-		catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		catch (IOException e)
+		{
+			Log.e(TAG,e.getMessage());
 		}	
 	}
 	
@@ -515,17 +550,19 @@ public class AgentService extends Service {
 				}
 			}
 			
-			Iterator it = netstatVal.entrySet().iterator();
+			is.close();
+			
+			Iterator<Map.Entry<String,Integer>> it = netstatVal.entrySet().iterator();
 		    while (it.hasNext()) {
-		        Map.Entry pairs = (Map.Entry)it.next();
+		    	Map.Entry<String,Integer> pairs = (Map.Entry<String,Integer>)it.next();
 		        _out.write(pairs.getKey()+" "+pairs.getValue()+NEWLINE);
 //		        System.out.println(pairs.getKey() + " = " + pairs.getValue());
 //		        it.remove(); // avoids a ConcurrentModificationException
 		    }
 		}
-		catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		catch (IOException e)
+		{
+			Log.e(TAG,e.getMessage());
 		}	
 	}
 	
@@ -551,10 +588,12 @@ public class AgentService extends Service {
 			{
 				_out.write(line+NEWLINE);
 			}
+			
+			is.close();
 		}
-		catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		catch (IOException e)
+		{
+			Log.e(TAG,e.getMessage());
 		}		
 	}
 	
@@ -575,6 +614,8 @@ public class AgentService extends Service {
 			{
 				_out.write(line+NEWLINE);
 			}
+			
+			is.close();
 		}
 		catch (IOException e)
 		{
@@ -614,6 +655,8 @@ public class AgentService extends Service {
 			{
 				_out.write(line+NEWLINE);
 			}
+			
+			is.close();
 		}
 		catch (IOException e)
 		{
@@ -623,7 +666,7 @@ public class AgentService extends Service {
 	
 	private int parseHRNumber(String _hrNum)
 	{
-		String multiplier = _hrNum.substring(_hrNum.length()-1);
+//		String multiplier = _hrNum.substring(_hrNum.length()-1);
 		int num = 0;
 		try
 		{
@@ -688,16 +731,15 @@ public class AgentService extends Service {
 	
 	private void changeBusyboxPermission()
 	{
-		Process chmod_proc;
 		try
 		{
-			chmod_proc = Runtime.getRuntime().exec("/system/bin/chmod 777 "+getApplicationInfo().dataDir+"/busybox");
-			chmod_proc = Runtime.getRuntime().exec("/system/bin/chmod 777 "+getApplicationInfo().dataDir+"/busybox-i686");
-			chmod_proc = Runtime.getRuntime().exec("/system/bin/chmod 777 "+getApplicationInfo().dataDir+"/busybox-x86_64");
+			Runtime.getRuntime().exec("/system/bin/chmod 777 "+getApplicationInfo().dataDir+"/busybox");
+			Runtime.getRuntime().exec("/system/bin/chmod 777 "+getApplicationInfo().dataDir+"/busybox-i686");
+			Runtime.getRuntime().exec("/system/bin/chmod 777 "+getApplicationInfo().dataDir+"/busybox-x86_64");
 		}
-		catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		catch (IOException e)
+		{
+			Log.e(TAG,e.getMessage());
 		}
 	}
 }
