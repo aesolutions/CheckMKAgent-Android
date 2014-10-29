@@ -21,7 +21,14 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 
-public class StartUpBroadCastReceiver extends BroadcastReceiver {
+/**
+ * Starts the service on System startup
+ * @author lukasbi
+ *
+ */
+public class StartUpBroadCastReceiver extends BroadcastReceiver
+{
+	protected static final String TAG = StartUpBroadCastReceiver.class.getName();
 
 	@Override
 	public void onReceive(Context context, Intent intent)

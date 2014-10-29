@@ -53,6 +53,15 @@ import android.support.v4.app.NotificationCompat;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
+/**
+ * The Service itself. It starts a multithreaded TCP socket Server that listen on Port 6556
+ * After a client connects, the server starts a new thread, which prints the whole CheckMK-Stuff
+ * out and closes the connection afterwards.
+ * The Server uses for some information Busybox, which will be copied from assets to the app
+ * folder on first run and makes it executable.
+ * @author lukasbi
+ *
+ */
 public class AgentService extends Service {
 	protected static final String TAG = AgentService.class.getName();
 	
@@ -74,6 +83,11 @@ public class AgentService extends Service {
 		return null;
 	}
 
+	/**
+	 * Create the Service. Opens a socket and accept incoming connections.
+	 * On first run, copy the busybox binary depending on architecture to
+	 * app directory and makes it executable.
+	 */
 	@Override
 	public void onCreate()
 	{
@@ -175,6 +189,10 @@ public class AgentService extends Service {
 				e.printStackTrace();
 			}
 		}
+		
+		NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+		mNotificationManager.cancel(mId);
 	}
 
 	private class SocketServerThread extends Thread

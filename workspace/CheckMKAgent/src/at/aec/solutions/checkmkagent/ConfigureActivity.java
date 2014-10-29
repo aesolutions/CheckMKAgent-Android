@@ -21,16 +21,21 @@ import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.ActivityManager.RunningServiceInfo;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class ConfigureActivity extends Activity {
+public class ConfigureActivity extends Activity implements OnClickListener
+{
+	protected static final String TAG = ConfigureActivity.class.getName();
 
 	private TextView lblStatus;
 	private Button cmdStartService;
@@ -46,6 +51,9 @@ public class ConfigureActivity extends Activity {
 		lblStatus = (TextView) findViewById(R.id.lblStatus);
 		cmdStartService = (Button) findViewById(R.id.btnStartService);
 		cmdStopService = (Button) findViewById(R.id.btnStopService);
+		
+		cmdStartService.setOnClickListener(this);
+		cmdStopService.setOnClickListener(this);
 		
 		setStatusLabel();
 	}
@@ -96,6 +104,25 @@ public class ConfigureActivity extends Activity {
 			lblStatus.setBackgroundColor(Color.rgb(170, 1, 20));
 			cmdStartService.setEnabled(true);
 			cmdStopService.setEnabled(false);
+		}
+	}
+
+	@Override
+	public void onClick(View v)
+	{
+		if(v.equals(cmdStopService))
+		{
+//			Log.v(TAG,"StopService");
+			Intent stopIntent = new Intent(getApplicationContext(), AgentService.class);
+			stopService(stopIntent);
+			setStatusLabel();
+		}
+		if(v.equals(cmdStartService))
+		{
+//			Log.v(TAG,"StartService");
+			Intent pushIntent = new Intent(getApplicationContext(), AgentService.class);
+			startService(pushIntent);
+			setStatusLabel();
 		}
 	}
 }
