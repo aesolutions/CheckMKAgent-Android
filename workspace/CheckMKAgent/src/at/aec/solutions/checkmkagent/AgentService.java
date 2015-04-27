@@ -185,8 +185,9 @@ public class AgentService extends Service {
 			{
 				m_serverSocket.close();
 			}
-			catch (IOException e) {
-				e.printStackTrace();
+			catch (IOException e)
+			{
+				Log.e(TAG,"Server Socket Error: "+e.getMessage());
 			}
 		}
 		
@@ -253,6 +254,9 @@ public class AgentService extends Service {
 				writeKernel(out);
 				writeDMIDecode(out);
 				writeCoreTemp(out);
+				writeProcRank(out);
+				writeAppMemUsage(out, "at.aec.solutions.checkmkagent");
+				writeAppMemUsage(out, "at.aec.solutions.adcolumnng");
 				
 				out.close();
 				
@@ -654,7 +658,7 @@ public class AgentService extends Service {
 		}
 		catch (IOException e)
 		{
-			e.printStackTrace();
+			Log.e(TAG,e.getMessage());
 		}	
 	}
 	
@@ -695,8 +699,59 @@ public class AgentService extends Service {
 		}
 		catch (IOException e)
 		{
-			e.printStackTrace();
+			Log.e(TAG,e.getMessage());
 		}	
+	}
+	
+	private void writeProcRank(PrintWriter _out)
+	{
+		Process procrank_proc;
+		try {
+			procrank_proc = Runtime.getRuntime().exec("procrank");
+			
+			BufferedReader is = new BufferedReader(new InputStreamReader(procrank_proc.getInputStream()));
+			String line;
+			
+			_out.write("<<<procrank>>>"+NEWLINE);
+//			is.readLine(); // skip the first line
+			while ((line = is.readLine()) != null)
+			{
+				_out.write(line+NEWLINE);
+			}
+			
+			is.close();
+		}
+		catch (IOException e)
+		{
+			Log.e(TAG,e.getMessage());
+		}		
+	}
+	
+	/* Maybe run this as root?
+	 * http://stackoverflow.com/questions/4905743/android-how-to-gain-root-access-in-an-android-application
+	 */
+	private void writeAppMemUsage(PrintWriter _out, String _app)
+	{
+		Process dumpsys_proc;
+		try {
+			dumpsys_proc = Runtime.getRuntime().exec("dumpsys meminfo "+_app);
+			
+			BufferedReader is = new BufferedReader(new InputStreamReader(dumpsys_proc.getInputStream()));
+			String line;
+			
+			_out.write("<<<mem_"+_app+">>>"+NEWLINE);
+//			is.readLine(); // skip the first line
+			while ((line = is.readLine()) != null)
+			{
+				_out.write(line+NEWLINE);
+			}
+			
+			is.close();
+		}
+		catch (IOException e)
+		{
+			Log.e(TAG,e.getMessage());
+		}		
 	}
 	
 	private int parseHRNumber(String _hrNum)
@@ -714,6 +769,8 @@ public class AgentService extends Service {
 		return num;
 	}
 	
+	
+	
 	private static boolean copyAssetFolder(AssetManager assetManager,
 			String fromAssetPath, String toPath) {
 		try {
@@ -729,7 +786,7 @@ public class AgentService extends Service {
 							+ file, toPath + "/" + file);
 			return res;
 		} catch (Exception e) {
-			e.printStackTrace();
+			Log.e(TAG,e.getMessage());
 			return false;
 		}
 	}
@@ -750,7 +807,7 @@ public class AgentService extends Service {
 			out = null;
 			return true;
 		} catch (Exception e) {
-			e.printStackTrace();
+			Log.e(TAG,e.getMessage());
 			return false;
 		}
 	}
